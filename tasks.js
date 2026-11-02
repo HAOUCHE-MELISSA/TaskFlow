@@ -1,0 +1,21 @@
+/* ================= tasks.js ================= */
+function setStatus(id,v){const t=db.tasks.find(x=>x.id==id);if(!t||t.status==v)return;t.status=v;
+  if(v=='Completed'){act('Task completed: '+t.title,'check');addN(nm(t.mem)+' completed '+t.title)}else act(`Task moved to ${v}: ${t.title}`,'edit');
+  save();render();toast('Task moved to '+v)}
+function taskForm(id,due){const t=id?db.tasks.find(x=>x.id==id):{status:'To Do',prio:'Medium',start:TODAY(),due:due||'',mem:db.team[0]?.id,proj:db.projects[0]?.id};
+  form(id?'Edit task':'New task',[{k:'title',l:'Title',r:1,v:t.title,w:'full'},{k:'desc',l:'Description',t:'textarea',v:t.desc,w:'full'},{k:'mem',l:'Assigned to',t:'select',o:db.team.map(m=>[m.id,m.name]),v:t.mem},{k:'proj',l:'Project',t:'select',o:db.projects.map(p=>[p.id,p.name]),v:t.proj},{k:'start',l:'Start date',t:'date',v:t.start},{k:'due',l:'Due date',t:'date',r:1,v:t.due},{k:'prio',l:'Priority',t:'select',o:PR.map(x=>[x,x]),v:t.prio},{k:'status',l:'Status',t:'select',o:ST.map(x=>[x,x]),v:t.status}],o=>{
+    if(id){if(o.status=='Completed'&&t.status!='Completed')addN(nm(o.mem)+' completed '+o.title);Object.assign(t,o);act('Task updated: '+o.title,'edit')}
+    else{db.tasks.unshift({id:uid(),...o,created:TODAY()});act('New task created: '+o.title,'plus');if(db.prefs.nTask)addN('New task assigned to '+nm(o.mem)+': '+o.title)}
+    save();render();toast(id?'Task updated':'Task created')})}
+function tasksPage(){
+  const q=($('#q').value||'').toLowerCase();
+  const l=db.tasks.filter(t=>(S.pf=='all'||t.prio==S.pf)&&t.title.toLowerCase().includes(q)).sort((a,b)=>S.sort*a.due.localeCompare(b.due));
+  const acts=t=>`<button class="ib s" data-a="edittask" data-id="${t.id}" aria-label="Edit task">${ic('edit',15)}</button> <button class="ib s" data-a="deltask" data-id="${t.id}" aria-label="Delete task">${ic('trash',15)}</button>`;
+  const tools=`<select class="sel" data-c="pf" aria-label="Filter by priority"><option value="all">All priorities</option>${PR.map(p=>`<option${S.pf==p?' selected':''}>${p}</option>`).join('')}</select><button class="btn" data-a="sort">${ic('sort',16)}Deadline ${S.sort>0?'earliest':'latest'}</button><div class="seg"><button data-a="vw" data-v="list" class="${S.view=='list'?'on':''}" aria-label="List view">${ic('list',16)}</button><button data-a="vw" data-v="board" class="${S.view=='board'?'on':''}" aria-label="Board view">${ic('board',16)}</button></div><button class="btn p" data-a="newtask">${ic('plus',16)}New task</button>`;
+  let body;
+  if(!l.length)body=`<div class="card">${empty('tasks','No tasks found','Adjust your search or filters, or create a new task.')}</div>`;
+  else if(S.view=='list')body=`<div class="card tw"><table><thead><tr><th></th><th>Task</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead><tbody>${l.map(t=>`<tr><td><input type="checkbox" data-a="tog" data-id="${t.id}"${t.status=='Completed'?' checked':''} aria-label="Mark completed"></td><td><div class="tt${t.status=='Completed'?' dn':''}">${esc(t.title)}</div><small class="mu">${esc((prj(t.proj)||{}).name||'No project')}</small></td><td><span class="who"><i class="av">${ini(nm(t.mem))}</i>${esc(nm(t.mem))}</span></td><td class="${isOver(t)?'red':''}">${fd(t.due)}</td><td>${bd(t.prio)}</td><td><select class="sel" data-c="st" data-id="${t.id}">${ST.map(s=>`<option${s==t.status?' selected':''}>${s}</option>`).join('')}</select></td><td class="ra">${acts(t)}</td></tr>`).join('')}</tbody></table></div>`;
+  else body=`<div class="kb">${ST.map(s=>{const c=l.filter(t=>t.status==s);return `<div class="kcol" data-s="${s}"><div class="rw"><b>${s}</b><span class="mu">${c.length}</span></div>${c.map(t=>`<div class="kc" draggable="true" data-id="${t.id}"><div class="rw">${bd(t.prio)}<button class="ib s" data-a="edittask" data-id="${t.id}" aria-label="Edit task">${ic('edit',14)}</button></div><b style="font-weight:500">${esc(t.title)}</b><div class="rw sm mu"><span class="who"><i class="av">${ini(nm(t.mem))}</i>${esc(nm(t.mem).split(' ')[0])}</span><span class="${isOver(t)?'red':''}">${fd(t.due)}</span></div></div>`).join('')}</div>`}).join('')}</div>`;
+  return head('My Tasks','Search, filter and drag tasks between columns.',tools)+body;
+}
+
